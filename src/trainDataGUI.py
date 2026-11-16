@@ -19,14 +19,14 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
 
-        self.click = 0
+        self.click = -1
         self.setWindowTitle("My App")
+        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.showFullScreen()
 
         self.pos_x = starting_offset_x
         self.pos_y = starting_offset_y
 
-        self.setWindowFlags(QtCore.Qt.WindowType.FramelessWindowHint)
         self.w = 0
         self.h = 0
 
@@ -56,8 +56,8 @@ class MainWindow(QMainWindow):
             self.click += 1
             key = self.click % 3
             if key == 2: self.pos_x += step_x
-            print(str(self.h))
-            if self.pos_x == self.w - radius * 2: # edge of screen
+            print(str(self.pos_x))
+            if self.pos_x >= self.w - radius * 2: # edge of screen
                 print("width")
                 if self.pos_y >= self.h - radius * 2: #finish
                     # do something
@@ -74,6 +74,7 @@ class MainWindow(QMainWindow):
         super().resizeEvent(event)
         self.w = self.width()
         self.h = self.height()
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
 
