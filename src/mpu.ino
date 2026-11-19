@@ -1,51 +1,52 @@
-#include <Adafruit_MPU6050.h>
-#include <Adafruit_Sensor.h>
-#include <Wire.h>
+#include "MPU9250.h"
 
-Adafruit_MPU6050 mpu;
-
-float roll = 0.0;
-float pitch = 0.0;
-unsigned long lastTime = 0;
+MPU9250 mpu;
 
 void setup() {
-  Serial.begin(115200);
-  while (!Serial) delay(10);
+    Serial.begin(115200);
+    Wire.begin();
+    delay(2000);
 
-  if (!mpu.begin()) {
-    Serial.println("no mpu found");
-    while (1) delay(10);
-  }
+    // Initialize sensor at default I2C address 0x68
+    if (!mpu.setup(0x68)) {
+        while (1) {
+            Serial.println("MPU connection failed. Check your wiring!");
+            delay(5000);
+        }
+    }
 
-  mpu.setAccelerometerRange(MPU6050_RANGE_2_G);
-  mpu.setGyroRange(MPU6050_RANGE_250_DEG);
-  mpu.setFilterBandwidth(MPU6050_BAND_21_HZ);
+    // Improve yaw stability on slower boards like the Arduino Uno
+    mpu.setFilterIterations(10);
 
-  lastTime = millis();
+    // --- CALIBRATION ---
+    Serial.println("Keep sensor completely flat and still for Accel/Gyro calibration...");
+    delay(3000);
+    mpu.calibrateAccelGyro();
+
+    Serial.println("Wave sensor in a figure-8 motion for Magnetometer calibration...");
+    delay(2000);
+    mpu.calibrateMag();
+
+    Serial.println("Calibration complete!");
 }
 
 void loop() {
-  sensors_event_t a, g, temp;
-  mpu.getEvent(&a, &g, &temp);
+    // Update the sensor as fast as possible
+    if (mpu.update()) {
+        // Print every 50ms (20 times per second) without blocking the filter
 
-  unsigned long currentTime = millis();
-  float dt = (currentTime - lastTime) / 1000.0;
-  lastTime = currentTime;
+        float yaw = mpu.getYaw();
+        float pitch = mpu.getPitch();
+        float roll = mpu.getRoll();
+        static uint32_t prev_ms = millis();
+        if (millis() > prev_ms + 50) {
+            Serial.print(pitch, 2);
+            Serial.print(",");
+            Serial.print(roll, 2);
+            Serial.print(",");
+            Serial.println(yaw, 2);
 
-  float accelRoll  = atan2(a.acceleration.y, a.acceleration.z) * 180.0 / PI;
-  float accelPitch = atan2(-a.acceleration.x, sqrt(a.acceleration.y * a.acceleration.y + a.acceleration.z * a.acceleration.z)) * 180.0 / PI;
-
-  float gyroX = g.gyro.x * 180.0 / PI;
-  float gyroY = g.gyro.y * 180.0 / PI;
-
-  roll  = 0.96 * (roll + gyroX * dt) + 0.04 * accelRoll;
-  pitch = 0.96 * (pitch + gyroY * dt) + 0.04 * accelPitch;
-
-  Serial.print("Roll: ");
-  Serial.print(roll, 1);
-  Serial.print(" deg\tPitch: ");
-  Serial.print(pitch, 1);
-  Serial.println(" deg");
-
-  delay(20);
+            prev_ms = millis();
+        }
+    }
 }
